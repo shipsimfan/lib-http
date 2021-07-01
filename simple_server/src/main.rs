@@ -1,22 +1,22 @@
 struct Server;
 
+const PORT: u16 = 3000;
+
 fn main() {
     let mut server = Server;
 
-    match http::server::listen(3000, &mut server) {
+    match http::server::listen(PORT, &mut server) {
         Err(error) => panic!("Error: {}", error),
         Ok(()) => {}
     }
 }
 
 impl http::server::Server for Server {
-    fn request(&mut self, request: String) -> String {
-        println!("Recieved request:\n{}", request);
-
-        "HTTP/1.1 200 OK\r\n\r\nHello World!".to_string()
+    fn on_start(&mut self) {
+        println!("Server listening on localhost:{}", PORT);
     }
 
-    fn start(&mut self) {
-        println!("Listening . . . ");
+    fn on_request(&mut self, _: String) -> String {
+        "Hello World!".to_string()
     }
 }
