@@ -16,7 +16,12 @@ impl http::server::Server for Server {
         println!("Server listening on localhost:{}", PORT);
     }
 
-    fn on_request(&mut self, _: String) -> String {
-        "Hello World!".to_string()
+    fn on_request(&mut self, request: http::Request) -> http::Response {
+        println!("{} request for {}", request.method(), request.path());
+        http::Response::new_ok(format!("Hello World!"))
+    }
+
+    fn on_error(&mut self, error: http::Error) {
+        println!("\x1B[31;1mERROR\x1B[0m: {}", error);
     }
 }

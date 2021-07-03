@@ -4,52 +4,55 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
+use crate::{Request, Response, Status};
+
 pub trait Server {
     fn on_start(&mut self) {}
+    #[allow(unused_variables)]
     fn on_connection(&mut self, stream: &mut TcpStream) -> bool {
         true
     }
-    fn on_request(&mut self, request: String) -> String;
+    fn on_request(&mut self, request: Request) -> Response;
+    fn on_error(&mut self, error: crate::Error);
 }
 
-fn display_error(message: &str, error: Box<dyn Error>) {
-    println!("\x1B[31;1mERROR\x1B[0m: {} - {}", message, error);
-}
-
-fn read_request(stream: &mut TcpStream) -> Result<String, ()> {
+fn read_request(stream: &mut TcpStream) -> Result<String, crate::Error> {
     let mut buffer = Vec::with_capacity(1024);
     unsafe { buffer.set_len(1024) };
     match stream.read(&mut buffer) {
         Ok(_) => {}
-        Err(error) => return Err(display_error("Unable to read request", Box::new(error))),
+        Err(error) => return Err(crate::Error::RequestReadError(error)),
     }
 
     match String::from_utf8(buffer) {
-        Ok(request) => Ok(request),
-        Err(error) => Err(display_error("Unable to convert request", Box::new(error))),
-    }
-}
-
-fn write_response(stream: &mut TcpStream, response: String) {
-    match stream.write_all(response.as_bytes()) {
-        Ok(_) => {}
-        Err(error) => return println!("Error while sending response: {}", error),
+        Ok(string) => Ok(string),
+        Err(error) => Err(crate::Error::RequestConversionError(error)),
     }
 }
 
 fn handle_client(mut stream: TcpStream, server: &mut dyn Server) {
+    // Call on connection
     if !server.on_connection(&mut stream) {
         return;
     }
 
-    let request = match read_request(&mut stream) {
+    // Read request
+    let request_string = match read_request(&mut stream) {
         Ok(request) => request,
-        Err(()) => return,
+        Err(error) => return server.on_error(error),
     };
 
-    let response = server.on_request(request);
+    // Parse request and generate response
+    let response = match Request::parse(&request_string) {
+        Ok(request) => server.on_request(request),
+        Err(_) => Response::new_status(Status::BadRequest),
+    };
 
-    write_response(&mut stream, response);
+    // Write response
+    match stream.write_all(response.to_string().as_bytes()) {
+        Ok(()) => {}
+        Err(error) => server.on_error(crate::Error::ResponseWriteError(error)),
+    }
 }
 
 pub fn listen(port: u16, server: &mut dyn Server) -> Result<(), Box<dyn Error>> {
@@ -61,7 +64,7 @@ pub fn listen(port: u16, server: &mut dyn Server) -> Result<(), Box<dyn Error>> 
         // Accept the incoming connection
         let stream = match stream {
             Err(error) => {
-                display_error("Unable to accept client", Box::new(error));
+                server.on_error(crate::Error::AcceptConnectionError(error));
                 continue;
             }
             Ok(stream) => stream,
