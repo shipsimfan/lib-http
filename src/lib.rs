@@ -1,4 +1,5 @@
 mod error;
+pub mod headers;
 mod request;
 mod response;
 pub mod server;

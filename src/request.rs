@@ -1,7 +1,15 @@
+use crate::headers::{entity::EntityHeader, general::GeneralHeader, request::RequestHeader};
+use std::collections::HashSet;
+
 pub struct Request {
     // Request line
     method: Method,
     path: String,
+    general_headers: HashSet<GeneralHeader>,
+    request_headers: HashSet<RequestHeader>,
+    entity_headers: HashSet<EntityHeader>,
+    other_headers: Vec<String>,
+    body: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -27,9 +35,65 @@ impl Request {
             None => return Err(crate::Error::BadRequest),
         })?;
 
+        // Parse headers
+        let mut general_headers = HashSet::new();
+        let mut request_headers = HashSet::new();
+        let mut entity_headers = HashSet::new();
+        let mut other_headers = Vec::new();
+        loop {
+            let line = match iter.next() {
+                Some(line) => line,
+                None => return Err(crate::Error::BadRequest),
+            };
+
+            if line == "" {
+                break;
+            }
+
+            match GeneralHeader::parse(line) {
+                Ok(header) => {
+                    general_headers.insert(header);
+                }
+                Err(error) => match error {
+                    crate::Error::InvalidHeader => match RequestHeader::parse(line) {
+                        Ok(header) => {
+                            request_headers.insert(header);
+                        }
+                        Err(error) => match error {
+                            crate::Error::InvalidHeader => match EntityHeader::parse(line) {
+                                Ok(header) => {
+                                    entity_headers.insert(header);
+                                }
+                                Err(error) => match error {
+                                    crate::Error::InvalidHeader => {
+                                        other_headers.push(line.to_string());
+                                    }
+                                    _ => return Err(error),
+                                },
+                            },
+                            _ => return Err(error),
+                        },
+                    },
+                    _ => return Err(error),
+                },
+            }
+        }
+
+        // Parse body
+        let mut body = String::new();
+        while let Some(line) = iter.next() {
+            body.push_str(line);
+            body.push_str("\r\n");
+        }
+
         Ok(Request {
             method: method,
             path: path,
+            general_headers: general_headers,
+            request_headers: request_headers,
+            entity_headers: entity_headers,
+            other_headers: other_headers,
+            body: body,
         })
     }
 
@@ -71,6 +135,26 @@ impl Request {
 
     pub fn path(&self) -> &str {
         &self.path
+    }
+
+    pub fn general_headers(&self) -> &HashSet<GeneralHeader> {
+        &self.general_headers
+    }
+
+    pub fn request_headers(&self) -> &HashSet<RequestHeader> {
+        &self.request_headers
+    }
+
+    pub fn entity_headers(&self) -> &HashSet<EntityHeader> {
+        &self.entity_headers
+    }
+
+    pub fn other_headers(&self) -> &Vec<String> {
+        &self.other_headers
+    }
+
+    pub fn body(&self) -> &str {
+        &self.body
     }
 }
 

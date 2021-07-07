@@ -6,6 +6,7 @@ pub enum Error {
     RequestReadError(std::io::Error),
     ResponseWriteError(std::io::Error),
     BadRequest,
+    InvalidHeader,
 }
 
 impl std::error::Error for Error {}
@@ -22,7 +23,8 @@ impl std::fmt::Display for Error {
                     format!("Unable to convert request - {}", error),
                 Error::RequestReadError(error) => format!("Unable to read request - {}", error),
                 Error::ResponseWriteError(error) => format!("Unable to write response - {}", error),
-                Error::BadRequest => format!("Bad Request"),
+                Error::BadRequest => format!("Bad request"),
+                Error::InvalidHeader => format!("Invalid header"),
             }
         )
     }

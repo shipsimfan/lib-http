@@ -6,6 +6,8 @@ use std::{
 
 use crate::{Request, Response, Status};
 
+const BUFFER_SIZE: usize = 1024;
+
 pub trait Server {
     fn on_start(&mut self) {}
     #[allow(unused_variables)]
@@ -17,8 +19,8 @@ pub trait Server {
 }
 
 fn read_request(stream: &mut TcpStream) -> Result<String, crate::Error> {
-    let mut buffer = Vec::with_capacity(1024);
-    unsafe { buffer.set_len(1024) };
+    let mut buffer = Vec::with_capacity(BUFFER_SIZE);
+    unsafe { buffer.set_len(BUFFER_SIZE) };
     match stream.read(&mut buffer) {
         Ok(_) => {}
         Err(error) => return Err(crate::Error::RequestReadError(error)),
