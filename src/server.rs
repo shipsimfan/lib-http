@@ -6,8 +6,6 @@ use std::{
 
 use crate::{Request, Response, Status};
 
-const BUFFER_SIZE: usize = 1024;
-
 pub trait Server {
     fn on_start(&mut self) {}
     #[allow(unused_variables)]
@@ -18,17 +16,11 @@ pub trait Server {
     fn on_error(&mut self, error: crate::Error);
 }
 
-fn read_request(stream: &mut TcpStream) -> Result<String, crate::Error> {
-    let mut buffer = Vec::with_capacity(BUFFER_SIZE);
-    unsafe { buffer.set_len(BUFFER_SIZE) };
-    match stream.read(&mut buffer) {
-        Ok(_) => {}
-        Err(error) => return Err(crate::Error::RequestReadError(error)),
-    }
-
-    match String::from_utf8(buffer) {
-        Ok(string) => Ok(string),
-        Err(error) => Err(crate::Error::RequestConversionError(error)),
+fn read_request(stream: &mut TcpStream) -> Result<Vec<u8>, crate::Error> {
+    let mut buffer = Vec::new();
+    match stream.read_to_end(&mut buffer) {
+        Ok(_) => Ok(buffer),
+        Err(error) => Err(crate::Error::RequestReadError(error)),
     }
 }
 
@@ -39,19 +31,19 @@ fn handle_client(mut stream: TcpStream, server: &mut dyn Server) {
     }
 
     // Read request
-    let request_string = match read_request(&mut stream) {
+    let request = match read_request(&mut stream) {
         Ok(request) => request,
         Err(error) => return server.on_error(error),
     };
 
     // Parse request and generate response
-    let response = match Request::parse(&request_string) {
+    let response = match Request::parse(request) {
         Ok(request) => server.on_request(request),
         Err(_) => Response::new_status(Status::BadRequest),
     };
 
     // Write response
-    match stream.write_all(response.to_string().as_bytes()) {
+    match stream.write_all(response.compile().as_slice()) {
         Ok(()) => {}
         Err(error) => server.on_error(crate::Error::ResponseWriteError(error)),
     }
