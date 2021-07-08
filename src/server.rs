@@ -1,10 +1,11 @@
+use crate::{Request, Response, Status};
 use std::{
     error::Error,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
 };
 
-use crate::{Request, Response, Status};
+const BUFFER_SIZE: usize = 8192;
 
 pub trait Server {
     fn on_start(&mut self) {}
@@ -17,9 +18,15 @@ pub trait Server {
 }
 
 fn read_request(stream: &mut TcpStream) -> Result<Vec<u8>, crate::Error> {
-    let mut buffer = Vec::new();
-    match stream.read_to_end(&mut buffer) {
-        Ok(_) => Ok(buffer),
+    let mut buffer = [0u8; BUFFER_SIZE];
+    match stream.read(&mut buffer) {
+        Ok(bytes_read) => {
+            let mut response = Vec::with_capacity(bytes_read);
+            for i in 0..bytes_read {
+                response.push(buffer[i]);
+            }
+            Ok(response)
+        }
         Err(error) => Err(crate::Error::RequestReadError(error)),
     }
 }

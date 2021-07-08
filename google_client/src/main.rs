@@ -1,5 +1,5 @@
 fn main() {
-    let request = http::Request::new("www.google.com", http::Method::GET, "/");
+    let request = http::Request::new("localhost:3000", http::Method::GET, "/");
 
     match request.send() {
         Ok(response) => {
