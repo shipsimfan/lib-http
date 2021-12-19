@@ -34,13 +34,27 @@ impl Response {
     }
 
     pub fn generate(mut self) -> String {
-        // Set Content-Length if nescessary
-        match &self.body {
-            Some(body) => self
+        // Set Content-Length, Server, and Content-Type
+        self.header.insert_header(
+            format!("Content-Length"),
+            format!(
+                "{}",
+                match &self.body {
+                    Some(body) => body.len(),
+                    None => 0,
+                }
+            ),
+        );
+
+        match self.header.get_header("Content-Type") {
+            Some(_) => {}
+            None => self
                 .header
-                .insert_header(format!("Content-Length"), format!("{}", body.len())),
-            None => {}
+                .insert_header(format!("Content-Type"), format!("text/plain")),
         }
+
+        self.header
+            .insert_header(format!("Server"), format!("Hart/1.0.0"));
 
         // Generate header
         let mut response = self.header.generate();

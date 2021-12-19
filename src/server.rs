@@ -129,9 +129,16 @@ fn handle_request<S: Server>(
 
     // Write response
     match stream.write_all(response.generate().as_bytes()) {
-        Ok(()) => match error {
-            None => Ok(ret),
-            Some(error) => Err(error),
+        Ok(()) => match stream.flush() {
+            Ok(()) => match error {
+                None => Ok(ret),
+                Some(error) => Err(error),
+            },
+            Err(io_error) => match error {
+                // Ignore the IO error if the response contained an error
+                None => Err(Box::new(io_error) as Box<dyn Error>),
+                Some(error) => Err(error),
+            },
         },
         Err(io_error) => match error {
             // Ignore the IO error if the response contained an error
