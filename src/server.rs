@@ -57,6 +57,10 @@ fn read_request(stream: &mut TcpStream) -> Result<Option<Request>, Box<dyn std::
         },
     };
 
+    if body_length == 0 {
+        return Ok(Some(Request::new(header, String::new())));
+    }
+
     // Read body
     let mut buffer = Vec::with_capacity(body_length);
     loop {
