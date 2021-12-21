@@ -9,7 +9,7 @@ use std::{
 pub type ClientErrorFn = fn(error: Box<dyn std::error::Error>);
 
 pub trait Server: Send + Sync {
-    fn handle_request(&self, request: Request) -> Result<Response, Box<dyn std::error::Error>>;
+    fn handle_request(&self, request: Request) -> Response;
 }
 
 #[derive(Debug)]
@@ -123,32 +123,15 @@ fn handle_request<S: Server>(
     };
 
     // Handle request
-    let (response, error) = match server.handle_request(request) {
-        Ok(response) => (response, None),
-        Err(error) => (
-            Response::new_status(Status::InternalServerError, Some(format!("{}", error))),
-            Some(error),
-        ),
-    };
+    let response = server.handle_request(request);
 
     // Write response
     match stream.write_all(response.generate().as_bytes()) {
         Ok(()) => match stream.flush() {
-            Ok(()) => match error {
-                None => Ok(ret),
-                Some(error) => Err(error),
-            },
-            Err(io_error) => match error {
-                // Ignore the IO error if the response contained an error
-                None => Err(Box::new(io_error) as Box<dyn Error>),
-                Some(error) => Err(error),
-            },
+            Ok(()) => Ok(ret),
+            Err(io_error) => Err(Box::new(io_error) as Box<dyn Error>),
         },
-        Err(io_error) => match error {
-            // Ignore the IO error if the response contained an error
-            None => Err(Box::new(io_error) as Box<dyn Error>),
-            Some(error) => Err(error),
-        },
+        Err(io_error) => Err(Box::new(io_error) as Box<dyn Error>),
     }
 }
 
