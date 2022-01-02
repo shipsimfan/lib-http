@@ -8,6 +8,7 @@ pub enum Method {
     Delete,
     Trace,
     Connect,
+    Patch,
 }
 
 #[derive(Debug)]
@@ -24,6 +25,7 @@ impl Method {
             "DELETE" => Method::Delete,
             "TRACE" => Method::Trace,
             "CONNECT" => Method::Connect,
+            "PATCH" => Method::Patch,
             _ => return Err(InvalidMethodError(str.as_ref().to_owned())),
         })
     }
@@ -43,6 +45,7 @@ impl std::fmt::Display for Method {
                 Method::Delete => "DELETE",
                 Method::Trace => "TRACE",
                 Method::Connect => "CONNECT",
+                Method::Patch => "PATCH",
             }
         )
     }
