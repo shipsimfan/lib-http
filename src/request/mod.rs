@@ -1,7 +1,7 @@
 mod header;
 mod method;
 
-pub use header::Header;
+pub use header::{Header, RequestParseError};
 pub use method::Method;
 
 pub struct Request {
